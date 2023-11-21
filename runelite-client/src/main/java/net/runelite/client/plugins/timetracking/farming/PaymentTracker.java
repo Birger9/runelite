@@ -24,12 +24,14 @@
  */
 package net.runelite.client.plugins.timetracking.farming;
 
+import java.util.Objects;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.MenuEntry;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
@@ -37,6 +39,8 @@ import net.runelite.api.widgets.WidgetModelType;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.MenuAction;
 
 @Slf4j
 @RequiredArgsConstructor(
@@ -52,6 +56,7 @@ public class PaymentTracker
 	private final Client client;
 	private final ConfigManager configManager;
 	private final FarmingWorld farmingWorld;
+	private int chosenPatch;
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick)
@@ -71,6 +76,7 @@ public class PaymentTracker
 
 		final int npcId = head.getModelId();
 		final FarmingPatch patch = findPatchForNpc(npcId);
+
 		if (patch == null)
 		{
 			return;
@@ -88,6 +94,23 @@ public class PaymentTracker
 	private static String configKey(FarmingPatch fp)
 	{
 		return fp.configKey() + "." + TimeTrackingConfig.PROTECTED;
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
+		switch (menuOptionClicked.getMenuAction()) {
+			case NPC_THIRD_OPTION:
+				chosenPatch = 1;
+				break;
+			case NPC_FOURTH_OPTION:
+				chosenPatch = 2;
+				break;
+			case WIDGET_CONTINUE:
+				chosenPatch = menuOptionClicked.getActionParam();
+				break;
+			default:
+				chosenPatch = -1;
+		}
 	}
 
 	public void setProtectedState(FarmingPatch fp, boolean state)
@@ -119,16 +142,19 @@ public class PaymentTracker
 			{
 				if (patch.getFarmer() == npcId)
 				{
-					if (p != null)
+					if (chosenPatch == 1 && Objects.equals(patch.getName(), "North"))
 					{
-						log.debug("Ambiguous payment to {} between {} and {}", npcId, p, patch);
-						return null;
+						p = patch;
 					}
-
-					p = patch;
+					else if (chosenPatch == 2 && Objects.equals(patch.getName(), "South"))
+					{
+						p = patch;
+					}
 				}
 			}
 		}
+
+		chosenPatch = -1;
 		return p;
 	}
 }
