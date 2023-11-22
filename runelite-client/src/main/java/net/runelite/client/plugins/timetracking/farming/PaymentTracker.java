@@ -24,6 +24,8 @@
  */
 package net.runelite.client.plugins.timetracking.farming;
 
+import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Objects;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -33,11 +35,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetModelType;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.plugins.devtools.ScriptInspector;
 import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.MenuAction;
@@ -61,6 +65,7 @@ public class PaymentTracker
 	@Subscribe
 	public void onGameTick(GameTick gameTick)
 	{
+		log.debug("CHOSEN PATCH IS {}", chosenPatch);
 		Widget text = client.getWidget(ComponentID.DIALOG_NPC_TEXT);
 		if (text == null || (!PAYMENT_MALE.equals(text.getText()) && !PAYMENT_FEMALE.equals(text.getText())))
 		{
@@ -74,6 +79,7 @@ public class PaymentTracker
 			return;
 		}
 
+		log.debug("CHOSEN PATCH IS BEFORE PATCH {}", chosenPatch);
 		final int npcId = head.getModelId();
 		final FarmingPatch patch = findPatchForNpc(npcId);
 
@@ -110,6 +116,21 @@ public class PaymentTracker
 				break;
 			default:
 				chosenPatch = -1;
+		}
+	}
+
+	@Subscribe
+	public void onScriptPreFired(ScriptPreFired event)
+	{
+		if (event.getScriptId() != 57)
+		{
+			return;
+		}
+
+		final String[] stringStack = client.getStringStack();
+		if(!stringStack[0].isEmpty()) {
+			log.debug("CHOSEN KEY IS {}", stringStack[0]);
+			chosenPatch = (Integer.parseInt(stringStack[0]) == 0) ? 2 : Integer.parseInt(stringStack[0]);
 		}
 	}
 
