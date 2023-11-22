@@ -78,7 +78,6 @@ public class PaymentTracker
 		log.debug("CHOSEN PATCH IS BEFORE PATCH {}", chosenPatch);
 		final int npcId = head.getModelId();
 		final FarmingPatch patch = findPatchForNpc(npcId);
-
 		chosenPatch = -1;
 
 		if (patch == null)
@@ -138,10 +137,18 @@ public class PaymentTracker
 		}
 
 		final String[] stringStack = client.getStringStack();
-		if(!stringStack[0].isEmpty() && chosenPatch != -1)
+		if(!stringStack[0].isEmpty() && chosenPatch == -1)
 		{
-			chosenPatch = (Integer.parseInt(stringStack[0]) == 0) ? 2 : Integer.parseInt(stringStack[0]);
-			log.debug("CHOSEN KEY IS {}", chosenPatch);
+			int keyPressedValue;
+			try {
+				keyPressedValue = Integer.parseInt(stringStack[0]);
+			}
+			catch (NumberFormatException e) {
+				return;
+			}
+			log.debug("CHOSEN1 KEY IS {}", stringStack[0]);
+			chosenPatch = (keyPressedValue == 0) ? 2 : keyPressedValue;
+			log.debug("CHOSEN2 KEY IS {}", chosenPatch);
 		}
 	}
 
