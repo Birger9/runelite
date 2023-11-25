@@ -24,6 +24,10 @@
  */
 package net.runelite.client.plugins.timetracking.farming;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -31,11 +35,13 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.ScriptEvent;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetModelType;
+import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
@@ -51,20 +57,20 @@ public class PaymentTracker
 {
 	private static final String PAYMENT_MALE = "That'll do nicely, sir. Leave it with me - I'll make sure<br>that patch grows for you.";
 	private static final String PAYMENT_FEMALE = "That'll do nicely, madam. Leave it with me - I'll make<br>sure that patch grows for you.";
+	private static final String TEST = "I might - which one were you thinking of?";
 
 	private final Client client;
 	private final ConfigManager configManager;
 	private final FarmingWorld farmingWorld;
+
 	private int chosenPatch = -1;
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick)
 	{
-		log.debug("CHOSEN PATCH AT THIS TICK IS {}", chosenPatch);
 		Widget text = client.getWidget(ComponentID.DIALOG_NPC_TEXT);
 		if (text == null || (!PAYMENT_MALE.equals(text.getText()) && !PAYMENT_FEMALE.equals(text.getText())))
 		{
-			chosenPatch = -1;
 			return;
 		}
 
@@ -75,10 +81,14 @@ public class PaymentTracker
 			return;
 		}
 
-		log.debug("CHOSEN PATCH IS BEFORE PATCH {}", chosenPatch);
 		final int npcId = head.getModelId();
+
+		if(chosenPatch == -1)
+		{
+			log.debug("No chosen patch to protect for {} ({})", name.getText(), npcId);
+		}
+
 		final FarmingPatch patch = findPatchForNpc(npcId);
-		chosenPatch = -1;
 
 		if (patch == null)
 		{
@@ -100,55 +110,36 @@ public class PaymentTracker
 	}
 
 	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
-		if (menuOptionClicked.getWidget() != null)
+	public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked)
+	{
+		switch (menuOptionClicked.getMenuAction())
 		{
-			String allotment = menuOptionClicked.getWidget().getText();
-			if (Objects.equals(allotment, "The northern allotment"))
-			{
-				chosenPatch =  1;
-			}
-			if (Objects.equals(allotment, "The southern allotment"))
-			{
-				chosenPatch =  2;
-			}
+			case NPC_THIRD_OPTION:
+				chosenPatch = 1;
+				break;
+			case NPC_FOURTH_OPTION:
+				chosenPatch = 2;
+				break;
+			case WIDGET_CONTINUE:
+				chosenPatch = (menuOptionClicked.getActionParam() != 1 && menuOptionClicked.getActionParam() != 2) ? -1 : menuOptionClicked.getActionParam();
+				break;
+			default:
+				chosenPatch = -1;
 		}
 	}
 
 	@Subscribe
 	public void onScriptPreFired(ScriptPreFired event)
 	{
-		if (event.getScriptId() != 57)
+		if (event.getScriptId() != 2153)
 		{
 			return;
 		}
 
-		Widget text = client.getWidget(ComponentID.DIALOG_NPC_TEXT);
-		if (text == null || (!PAYMENT_MALE.equals(text.getText()) && !PAYMENT_FEMALE.equals(text.getText())))
+		int pressedKey = client.getIntStack()[1];
+		if (pressedKey != 0 && pressedKey != -1)
 		{
-			return;
-		}
-
-		Widget name = client.getWidget(ComponentID.DIALOG_NPC_NAME);
-		Widget head = client.getWidget(ComponentID.DIALOG_NPC_HEAD_MODEL);
-		if (name == null || head == null || head.getModelType() != WidgetModelType.NPC_CHATHEAD)
-		{
-			return;
-		}
-
-		final String[] stringStack = client.getStringStack();
-		if(!stringStack[0].isEmpty() && chosenPatch == -1)
-		{
-			int keyPressedValue;
-			try {
-				keyPressedValue = Integer.parseInt(stringStack[0]);
-			}
-			catch (NumberFormatException e) {
-				return;
-			}
-			log.debug("CHOSEN1 KEY IS {}", stringStack[0]);
-			chosenPatch = (keyPressedValue == 0) ? 2 : keyPressedValue;
-			log.debug("CHOSEN2 KEY IS {}", chosenPatch);
+			chosenPatch = pressedKey;
 		}
 	}
 
@@ -181,11 +172,11 @@ public class PaymentTracker
 			{
 				if (patch.getFarmer() == npcId)
 				{
-					if (chosenPatch == 1 && Objects.equals(patch.getName(), "North"))
+					if (chosenPatch == 1 && (Objects.equals(patch.getName(), "North") || Objects.equals(patch.getName(), "North West")))
 					{
 						p = patch;
 					}
-					else if (chosenPatch == 2 && Objects.equals(patch.getName(), "South"))
+					else if (chosenPatch == 2 && (Objects.equals(patch.getName(), "South") || Objects.equals(patch.getName(), "South East")))
 					{
 						p = patch;
 					}
