@@ -57,7 +57,6 @@ public class PaymentTracker
 {
 	private static final String PAYMENT_MALE = "That'll do nicely, sir. Leave it with me - I'll make sure<br>that patch grows for you.";
 	private static final String PAYMENT_FEMALE = "That'll do nicely, madam. Leave it with me - I'll make<br>sure that patch grows for you.";
-	private static final String TEST = "I might - which one were you thinking of?";
 
 	private final Client client;
 	private final ConfigManager configManager;
@@ -68,39 +67,35 @@ public class PaymentTracker
 	@Subscribe
 	public void onGameTick(GameTick gameTick)
 	{
-		Widget text = client.getWidget(ComponentID.DIALOG_NPC_TEXT);
-		if (text == null || (!PAYMENT_MALE.equals(text.getText()) && !PAYMENT_FEMALE.equals(text.getText())))
+		Widget npcTextWidget = client.getWidget(ComponentID.DIALOG_NPC_TEXT);
+		Widget npcNameWidget = client.getWidget(ComponentID.DIALOG_NPC_NAME);
+		Widget npcHeadWidget = client.getWidget(ComponentID.DIALOG_NPC_HEAD_MODEL);
+
+		if (npcTextWidget == null || (!PAYMENT_MALE.equals(npcTextWidget.getText()) && !PAYMENT_FEMALE.equals(npcTextWidget.getText())))
 		{
 			return;
 		}
 
-		Widget name = client.getWidget(ComponentID.DIALOG_NPC_NAME);
-		Widget head = client.getWidget(ComponentID.DIALOG_NPC_HEAD_MODEL);
-		if (name == null || head == null || head.getModelType() != WidgetModelType.NPC_CHATHEAD)
+		if (npcNameWidget == null || npcHeadWidget == null || npcHeadWidget.getModelType() != WidgetModelType.NPC_CHATHEAD)
 		{
 			return;
 		}
 
-		final int npcId = head.getModelId();
+		final int npcId = npcHeadWidget.getModelId();
 
-		if(chosenPatch == -1)
+		if (chosenPatch == -1)
 		{
-			log.debug("No chosen patch to protect for {} ({})", name.getText(), npcId);
+			log.debug("No chosen patch to protect for {} ({})", npcNameWidget.getText(), npcId);
 		}
 
 		final FarmingPatch patch = findPatchForNpc(npcId);
 
-		if (patch == null)
+		if (patch == null || getProtectedState(patch))
 		{
 			return;
 		}
 
-		if (getProtectedState(patch))
-		{
-			return;
-		}
-
-		log.debug("Detected patch payment for {} ({})", name.getText(), npcId);
+		log.debug("Detected patch payment for {} ({})", npcNameWidget.getText(), npcId);
 		setProtectedState(patch, true);
 	}
 
@@ -163,23 +158,26 @@ public class PaymentTracker
 			Boolean.class));
 	}
 
+	private boolean isItTheCorrectPatch(FarmingPatch patch)
+	{
+		if (chosenPatch == 1 && (Objects.equals(patch.getName(), "North") || Objects.equals(patch.getName(), "North West")))
+		{
+			return true;
+		}
+		else return chosenPatch == 2 && (Objects.equals(patch.getName(), "South") || Objects.equals(patch.getName(), "South East"));
+	}
+
 	private FarmingPatch findPatchForNpc(int npcId)
 	{
 		FarmingPatch p = null;
+
 		for (FarmingRegion region : farmingWorld.getRegionsForLocation(client.getLocalPlayer().getWorldLocation()))
 		{
 			for (FarmingPatch patch : region.getPatches())
 			{
-				if (patch.getFarmer() == npcId)
+				if (patch.getFarmer() == npcId && isItTheCorrectPatch(patch))
 				{
-					if (chosenPatch == 1 && (Objects.equals(patch.getName(), "North") || Objects.equals(patch.getName(), "North West")))
-					{
-						p = patch;
-					}
-					else if (chosenPatch == 2 && (Objects.equals(patch.getName(), "South") || Objects.equals(patch.getName(), "South East")))
-					{
-						p = patch;
-					}
+					p = patch;
 				}
 			}
 		}
