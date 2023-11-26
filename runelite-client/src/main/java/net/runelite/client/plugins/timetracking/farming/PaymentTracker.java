@@ -24,10 +24,6 @@
  */
 package net.runelite.client.plugins.timetracking.farming;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -35,13 +31,11 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.ScriptEvent;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetModelType;
-import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.timetracking.TimeTrackingConfig;
@@ -63,6 +57,7 @@ public class PaymentTracker
 	private final FarmingWorld farmingWorld;
 
 	private int chosenPatch = -1;
+	private boolean widgetActive = false;
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick)
@@ -132,9 +127,17 @@ public class PaymentTracker
 		}
 
 		int pressedKey = client.getIntStack()[1];
-		if (pressedKey != 0 && pressedKey != -1)
+		int instruction = client.getIntStack()[0];
+
+		if (pressedKey != 0 && pressedKey != -1 && pressedKey <= 2 && widgetActive)
 		{
 			chosenPatch = pressedKey;
+			widgetActive = false;
+		}
+
+		if(instruction == 15138821)
+		{
+			widgetActive = true;
 		}
 	}
 
